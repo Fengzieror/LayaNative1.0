@@ -1,0 +1,207 @@
+#include "../conch/JCConch.h"
+#include <hilog/log.h>
+#include "aki/jsbind.h"
+#include <napi/native_api.h>
+#include "NapiValueConverter.h"
+
+using namespace laya;
+
+struct AsyncCallParam {
+    std::function<void(std::string)> cb;// 执行异步回调后的c++回调
+    std::string paramStr;// 执行异步js方法的参数
+    bool isSyn;
+    const char* clsPath;
+    const char* methodName;
+    std::string method;
+    std::string module_info;
+};
+
+class NapiHelper{
+public:
+    ~NapiHelper() {}
+    static NapiHelper *GetInstance() { return &NapiHelper::help_; }
+    std::string getDeviceInfo();
+    int getNetworkType();
+    void startVibration(float duration);
+    void playBackgroundMusic(const char *p_sUrl, int p_nTimes, float nCurrentTime);
+    void pauseBackgroundMusic();
+    void stopBackgroundMusic();
+    void setBackgroundMusicVolume(float p_nVolume);
+    void resumeBackgroundMusic();
+    void setCurrentTime(double nCurrentTime);
+    double getCurrentTime();
+    double getDuration();
+    std::string getAppVersion();
+    std::string getAppLocalVersion();
+
+    void showDialog(const char *p_sBuffer);
+    void setKeepScreenOn(bool value);
+    void setPreferredOrientation(int orientation);
+    float getScreenInch();
+    int getAvalidMem();
+    int getUsedMem();
+    void exitGame();
+    void handleEditBoxMsg(std::string name, int m_tag);
+    void handleEditBoxMsgStr(std::string name, int m_tag, std::string value);
+    std::string handleEditBoxMsgGetStr(std::string name, int m_tag);
+
+    void handleEditBoxMsgBool(std::string name, int m_tag, bool value);
+    void handleEditBoxMsgNum1(std::string name, int m_tag, float value1);
+    void handleEditBoxMsgNum2(std::string name, int m_tag, float value1, float value2);
+
+    std::string postMessageToUIThread(std::string eventName, std::string data);
+    std::string postSyncMessageToUIThread(std::string eventName, std::string data);
+    std::string postCmdToMain(std::string data);
+    std::string callNativeMethod(bool isSyn, const char* clsPath, const char* methodName, const char* paramStr);
+    void __pauseBackgroundMusic();
+    void __resumeBackgroundMusic();
+    void handleCloseWebview();
+    void handleCreateWebview(const char* sUrl,int x, int y, int w, int h, bool bCloseWebview);
+    void handleCallWebviewJS(const char* sFunctionName, const char* sJsonParam, const char* sCallbackFunction);
+    void handleHideWebview();
+    void handleShowWebview();
+
+private:
+    std::string __getDeviceInfo();
+    int __getNetworkType();
+    void __startVibration(float duration);
+    void __playBackgroundMusic(const char *p_sUrl, int p_nTimes, float nCurrentTime);
+    void __stopBackgroundMusic();
+    void __setBackgroundMusicVolume(float p_nVolume);
+    void __setCurrentTime(double nCurrentTime);
+    double __getCurrentTime();
+    double __getDuration();
+    std::string __getAppVersion();
+    std::string __getAppLocalVersion();
+
+    void __showDialog(const char *p_sBuffer);
+    void __setKeepScreenOn(bool value);
+    void __setPreferredOrientation(int orientation);
+    float __getScreenInch();
+    int __getAvalidMem();
+    int __getUsedMem();
+    void __exitGame();
+    void __handleEditBoxMsg(std::string name, int m_tag);
+    void __handleEditBoxMsgStr(std::string name, int m_tag, std::string value);
+    std::string __handleEditBoxMsgGetStr(std::string name, int m_tag);
+
+    void __handleEditBoxMsgBool(std::string name, int m_tag, bool value);
+    void __handleEditBoxMsgNum1(std::string name, int m_tag, float value1);
+    void __handleEditBoxMsgNum2(std::string name, int m_tag, float value1, float value2);
+
+    std::string __postMessageToUIThread(std::string eventName, std::string data);
+    std::string __postSyncMessageToUIThread(std::string eventName, std::string data);
+    std::string __postCmdToMain(std::string data);
+    std::string __callNativeMethod(bool isSyn, const char* clsPath, const char* methodName, const char* paramStr);
+    std::string __getModuleInfo(const char* module_name);
+    void __handleCloseWebview();
+    void __handleCreateWebview(const char *sUrl, int x, int y, int w, int h, bool bCloseWebview);
+    void __handleCallWebviewJS(const char *sFunctionName, const char *sJsonParam, const char *sCallbackFunction);
+    void __handleHideWebview();
+    void __handleShowWebview();
+    static NapiHelper help_;
+
+private:
+    std::string deviceInfo;
+    std::string appVersion;
+    std::string appLocalVersion;
+    std::string eventResult;
+    std::string syncEventResult;
+    int networkType;
+    int volume;
+    double currentTime;
+    double duration;
+    float screenInch;
+    int avalidMem;
+    int usedMem;
+    std::string inputInfoValue;
+    std::string methodResult;
+    std::string bundle_name;
+};
+
+class JSFunction {
+public:
+    napi_threadsafe_function save_func = nullptr;
+    napi_env env;
+
+public: 
+    static std::unordered_map<std::string, JSFunction> FUNCTION_MAP;  
+
+    explicit JSFunction(napi_env env, napi_threadsafe_function save_func)
+        : env(env), save_func(save_func){} 
+
+    static JSFunction getFunction(std::string functionName)
+    {
+        return FUNCTION_MAP.at(functionName);
+    }
+
+    static void addFunction(std::string name, JSFunction jsFunction) {
+        FUNCTION_MAP.emplace(name, jsFunction);
+    }
+    
+    void invokeAsync(AsyncCallParam *callParam) {
+        LOGI("=========cocos-[NApiHelper]=========JSFunction::invokeAsync =========");
+        
+        napi_status status;
+        
+        status = napi_acquire_threadsafe_function(save_func);
+        if (status != napi_ok) {
+            LOGW("invokeAsync napi_acquire_threadsafe_function fail,status=%{public}d", status);
+            return callParam->cb("napi_error");
+        }
+        
+        status = napi_call_threadsafe_function(save_func, callParam, napi_tsfn_blocking);
+        if (status != napi_ok) {
+            LOGW("invokeAsync napi_call_threadsafe_function fail,status=%{public}d", status);
+            return callParam->cb("napi_error");
+        }
+    }
+    
+    static void CallJS(napi_env env, napi_value js_cb, void *context, void *data) {
+        LOGI("napi_call_threadsafe_function CallJS");
+        
+        AsyncCallParam *callParam = (AsyncCallParam*) (data);
+        if (callParam == nullptr) {
+            LOGW("CallJS AsyncCallParam callParam is null");
+            return callParam->cb("napi_error");
+        }
+        
+        napi_status status;
+        napi_value result;
+        status = napi_load_module_with_info(env, callParam->clsPath, callParam->module_info.c_str(), &result);
+        if (status != napi_ok) {
+            LOGW("callNativeMethod napi_load_module_with_info fail, status=%{public}d", status);
+            return callParam->cb("napi_error");
+        }
+        
+        napi_value callFunc;
+        status = napi_get_named_property(env, result, callParam->method.c_str(), &callFunc);
+        if (status != napi_ok) {
+            LOGW("callNativeMethod napi_get_named_property fail, status=%{public}d", status);
+            return callParam->cb("napi_error");
+        }
+        
+        napi_value isSyn = NapiValueConverter::ToNapiValue(env, callParam->isSyn);
+        napi_value cName = NapiValueConverter::ToNapiValue(env, callParam->clsPath);
+        napi_value mName = NapiValueConverter::ToNapiValue(env, callParam->methodName);
+        napi_value paramStr = NapiValueConverter::ToNapiValue(env, callParam->paramStr);
+        napi_value jsArgs[5] = {isSyn, cName, mName, callFunc, paramStr};
+        napi_value return_val;
+        napi_value global;
+        status = napi_get_global(env, &global);
+        if (status != napi_ok) {
+            LOGW("CallJS napi_get_global fail,status=%{public}d", status);
+            return callParam->cb("napi_error");
+        }
+        
+        status = napi_call_function(env, global, js_cb, 5, jsArgs, &return_val);
+        if (status != napi_ok) {
+            LOGW("CallJS napi_call_function fail,status=%{public}d", status);
+            return callParam->cb("napi_error");
+        }
+        
+        std::string resultStr;
+        NapiValueConverter::ToCppValue(env, return_val, resultStr);
+        callParam->cb(resultStr);
+    }
+};

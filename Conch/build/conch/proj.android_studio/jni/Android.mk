@@ -13,7 +13,7 @@ LOCAL_CFLAGS := \
   -DIN_LIBRARY \
   -D_GLIBCXX_PERMIT_BACKWARD_HASH \
   -DANDROID_ARM_NEON=TRUE \
-  -DANDROID_STL=c++_shared \
+  -DANDROID_STL=c++_static \
   -DANDROID_TOOLCHAIN=clang \
   -fno-rtti \
   -DAL_ALEXT_PROTOTYPES \
@@ -123,7 +123,7 @@ else ifeq ($(TARGET_ARCH),x86)
 LOCAL_IS64:=x86
 endif
 LOCAL_DISABLE_FATAL_LINKER_WARNINGS := true
-LOCAL_LDLIBS    := -lOpenSLES -llog -lGLESv3 -landroid -ljnigraphics -lm -lz -lc++ \
+LOCAL_LDLIBS    := -lOpenSLES -llog -lGLESv3 -landroid -ljnigraphics -lm -lz \
         ../../../../libs/android-$(LOCAL_IS64)/librender.a \
         ../../../../libs/android-$(LOCAL_IS64)/libcommon.a \
         ../../../../../ThirdParty/curl/lib/android-$(LOCAL_IS64)/libcurl.a \

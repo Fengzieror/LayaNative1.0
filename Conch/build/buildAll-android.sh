@@ -23,4 +23,10 @@ if [ ! -f conch/proj.android_studio/conch5/libs/arm64-v8a/liblayaair.so ]; then
   echo "ERROR: liblayaair.so was NOT built"
   exit 1
 fi
-echo "[buildAll] OK: liblayaair.so built"
+
+# Guard: liblayaair.so must NOT depend on libc++_shared.so (we link c++ statically).
+if strings conch/proj.android_studio/conch5/libs/arm64-v8a/liblayaair.so | grep -q '^libc++_shared\.so$'; then
+  echo "ERROR: liblayaair.so still depends on libc++_shared.so (c++_static not effective)"
+  exit 1
+fi
+echo "[buildAll] OK: liblayaair.so built (no libc++_shared dependency)"

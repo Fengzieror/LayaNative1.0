@@ -1,4 +1,4 @@
-APP_STL := c++_shared
+APP_STL := c++_static
 APP_PLATFORM := android-21
 APP_OPTIM := release
 APP_PERFTEST := 1
